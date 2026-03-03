@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <title>Simulatore RAM</title>
-  <!-- Importo p5.js per disegnare i rettangoli della RAM -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+
 </head>
 <body>
-
   <h1>Simulatore RAM - Allocazione a Partizioni Fisse</h1>
 
   <p>
@@ -18,14 +16,124 @@
     (si chiama <b>frammentazione interna</b>).
   </p>
 
+
   <p>Premi i bottoni per allocare i processi nella RAM.</p>
 
-  <!-- Bottoni per allocare i 3 processi -->
-  <button onclick="alloca(0)">Alloca P1</button>
-  <button onclick="alloca(1)">Alloca P2</button>
-  <button onclick="alloca(2)">Alloca P3</button>
-  <button onclick="reset()">Reset</button>
+  <canvas id="canvas" width="200" height="400"></canvas>
 
-</script>
+  <button onclick="alloca(0)">Alloca P1 (40 MB)</button>
+  <button onclick="alloca(1)">Alloca P2 (60 MB)</button>
+  <button onclick="alloca(2)">Alloca P3 (30 MB)</button>
+  <button onclick="liberaTutto()">Reset</button>
+
+  <p id="calcoli">Spazio libero: — | Frammentazione interna: —</p>
+
+  <script>
+    var RAM_MB = 256;
+    var OS_MB = 32;
+    var NUM_PARTIZIONI = 4;
+    var DIM_PARTIZIONE = Math.floor((RAM_MB - OS_MB) / NUM_PARTIZIONI);
+
+    var processi = [
+      { nome: "P1", mb: 40, colore: "lightblue",  allocato: false },
+      { nome: "P2", mb: 60, colore: "orange",     allocato: false },
+      { nome: "P3", mb: 30, colore: "lightgreen", allocato: false }
+    ];
+
+    var partizioni = [];
+    for (var i = 0; i < NUM_PARTIZIONI; i++) {
+      partizioni.push({ libera: true, processo: null });
+    }
+
+    function mappa(mb) {
+      return Math.floor((mb / RAM_MB) * 380);
+    }
+
+    function disegna() {
+      var canvas = document.getElementById("canvas");
+      var ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.font = "11px Arial";
+      var y = 10;
+
+      var hOS = mappa(OS_MB);
+      ctx.fillStyle = "green";
+      ctx.fillRect(10, y, 150, hOS);
+      ctx.fillStyle = "white";
+      ctx.fillText("OS  " + OS_MB + " MB", 15, y + hOS / 2 + 4);
+      y += hOS;
+
+      for (var i = 0; i < partizioni.length; i++) {
+        var p = partizioni[i];
+        var hP = mappa(DIM_PARTIZIONE);
+
+        if (p.libera) {
+          ctx.fillStyle = "#ddd";
+          ctx.fillRect(10, y, 150, hP);
+          ctx.fillStyle = "#333";
+          ctx.fillText("LIBERA  " + DIM_PARTIZIONE + " MB", 15, y + hP / 2 + 4);
+        } else {
+          var proc = p.processo;
+          var hProc = mappa(proc.mb);
+          var hFrag = hP - hProc;
+
+          ctx.fillStyle = proc.colore;
+          ctx.fillRect(10, y, 150, hProc);
+          ctx.fillStyle = "#333";
+          ctx.fillText(proc.nome + "  " + proc.mb + " MB", 15, y + hProc / 2 + 4);
+
+          if (hFrag > 0) {
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(10, y + hProc, 150, hFrag);
+            ctx.fillStyle = "#333";
+            ctx.fillText("frag: " + (DIM_PARTIZIONE - proc.mb) + " MB", 15, y + hProc + hFrag / 2 + 4);
+          }
+        }
+
+        ctx.strokeStyle = "#555";
+        ctx.strokeRect(10, y, 150, hP);
+        y += hP;
+      }
+    }
+
+    function calcolaEMostra() {
+      var libero = 0, frag = 0;
+      for (var i = 0; i < partizioni.length; i++) {
+        if (partizioni[i].libera) libero += DIM_PARTIZIONE;
+        else frag += DIM_PARTIZIONE - partizioni[i].processo.mb;
+      }
+      document.getElementById("calcoli").innerText =
+        "Spazio libero: " + libero + " MB  |  Frammentazione interna: " + frag + " MB";
+    }
+
+    function alloca(i) {
+      var proc = processi[i];
+      if (proc.allocato) { alert(proc.nome + " è già in memoria!"); return; }
+      if (proc.mb > DIM_PARTIZIONE) { alert(proc.nome + " è troppo grande!"); return; }
+      for (var j = 0; j < partizioni.length; j++) {
+        if (partizioni[j].libera) {
+          partizioni[j].libera = false;
+          partizioni[j].processo = proc;
+          proc.allocato = true;
+          break;
+        }
+      }
+      disegna();
+      calcolaEMostra();
+    }
+
+    function liberaTutto() {
+      for (var j = 0; j < partizioni.length; j++) {
+        partizioni[j].libera = true;
+        partizioni[j].processo = null;
+      }
+      for (var k = 0; k < processi.length; k++) processi[k].allocato = false;
+      disegna();
+      calcolaEMostra();
+    }
+
+    disegna();
+  </script>
+
 </body>
 </html>
